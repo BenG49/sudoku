@@ -46,46 +46,6 @@ class Sudoku:
 			for x in range(self.nums):
 				if self.l[y][x] != 0:
 					self.update_mask(x, y)
-
-	# horrible performance probably
-	def valid_place(self, x: int, y: int, n: int) -> bool:
-		return not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_idx(x, y)[0]])
-
-	def update_mask(self, x: int, y: int, prev: int = None):
-		# more complicated
-		if self.l[y][x] == 0:
-			for n in range(self.nums):
-				if n != prev:
-					# only set if number is blocking
-					self.mask[n][y][x] = self.valid_place(x, y, n)
-				else:
-					for i in range(self.nums):
-						# loop through row
-						if self.mask[n][i][x] == 0:
-							self.mask[n][i][x] = self.valid_place(x, y, n)
-						# loop through col
-						if self.mask[y][i][n] == 0:
-							self.mask[y][i][n] = self.valid_place(x, y, n)
-
-			return
-
-		# new number has been placed, cannot be placed anywhere else
-		for n in range(self.nums):
-			self.mask[n][y][x] = False
-
-		n = self.l[y][x] - 1
-
-		# loop through cross around x, y
-		for i in range(self.nums):
-			self.mask[n][y][i] = False
-			self.mask[n][i][x] = False
-		
-		# set all of current sq to false
-		c_x = x - (x % self.sq_sz)
-		c_y = y - (y % self.sq_sz)
-		for i_y in range(self.sq_sz):
-			for i_x in range(self.sq_sz):
-				self.mask[n][i_y + c_y][i_x + c_x] = False
 	
 	def __getitem__(self, pos: tuple) -> int:
 		x, y = pos
@@ -149,6 +109,44 @@ class Sudoku:
 		# passed sums test, check if valid
 		return self.valid()
 
+	# horrible performance probably
+	def valid_place(self, x: int, y: int, n: int) -> bool:
+		return not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_idx(x, y)[0]])
+
+	def update_mask(self, x: int, y: int, prev: int = None):
+		# more complicated
+		if self.l[y][x] == 0:
+			for n in range(self.nums):
+				if n != prev:
+					# only set if number is blocking
+					self.mask[n][y][x] = self.valid_place(x, y, n + 1)
+				else:
+					for i in range(self.nums):
+						# loop through row
+						if self.mask[n][i][x] == 0:
+							self.mask[n][i][x] = self.valid_place(x, y, n + 1)
+						# loop through col
+						if self.mask[y][i][n] == 0:
+							self.mask[y][i][n] = self.valid_place(x, y, n + 1)
+		else:
+			# new number has been placed, cannot be placed anywhere else
+			for n in range(self.nums):
+				self.mask[n][y][x] = False
+
+			n = self.l[y][x] - 1
+
+			# loop through cross around x, y
+			for i in range(self.nums):
+				self.mask[n][y][i] = False
+				self.mask[n][i][x] = False
+		
+			# set all of current sq to false
+			c_x = x - (x % self.sq_sz)
+			c_y = y - (y % self.sq_sz)
+			for i_y in range(self.sq_sz):
+				for i_x in range(self.sq_sz):
+					self.mask[n][i_y + c_y][i_x + c_x] = False
+
 backtracks = 0
 
 # given a valid board, returns None if not solvable
@@ -197,13 +195,6 @@ def main():
 		[0, 0, 0, 0],
 	], 2)
 
-	s = Sudoku([
-		[2, 0, 3, 0],
-		[0, 0, 4, 0],
-		[4, 0, 0, 1],
-		[0, 0, 0, 0],
-	], 2)
-
 	# s = Sudoku([
 	# 	[0, 0, 0, 0, 0, 0, 2, 0, 0],
 	# 	[0, 8, 0, 0, 0, 7, 0, 9, 0],
@@ -216,12 +207,17 @@ def main():
 	# 	[0, 0, 6, 0, 0, 0, 0, 0, 0],
 	# ])
 
-	print(s.mask[0])
-	print(s.mask[2])
+	s = Sudoku([
+		[2, 0, 3, 0],
+		[0, 0, 4, 0],
+		[4, 0, 0, 1],
+		[0, 0, 0, 0],
+	], 2)
+
 	s[2, 0] = 0
+	# [[False, (True), True, True], [True, True, False, (True)], [False, True, (True), False], [True, True, (True), True]]
+	print(s.mask[2]) # 3
 	print(s)
-	print(s.mask[0])
-	print(s.mask[2])
 
 	# print(solve_bad(s))
 	# print(f'backtracks: {backtracks}')
