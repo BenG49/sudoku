@@ -36,7 +36,7 @@ class Sudoku:
 		self.squares = arr_init(self.nums, self.nums, 0)
 		for y in range(self.nums):
 			for x in range(self.nums):
-				sq, idx = self.sq_idx(x, y)
+				sq, idx = self.sq_coord(x, y)
 				self.squares[sq][idx] = self.l[y][x]
 
 		# NOTE: index 0 is number 1
@@ -45,7 +45,7 @@ class Sudoku:
 		for y in range(self.nums):
 			for x in range(self.nums):
 				if self.l[y][x] != 0:
-					self.update_mask(x, y)
+					self.update_mask(x, y, 0)
 	
 	def __getitem__(self, pos: tuple) -> int:
 		x, y = pos
@@ -62,26 +62,29 @@ class Sudoku:
 		# update mirror arrays
 		self.cols[x][y] = val
 
-		i = self.sq_idx(x, y)
+		i = self.sq_coord(x, y)
 		self.squares[i[0]][i[1]] = val
 
-		if val == 0:
-			self.update_mask(x, y, prev)
-		else:
-			self.update_mask(x, y)
+		self.update_mask(x, y, prev)
 	
 	# lol
 	def __delitem__(self, pos: tuple): pass
 
-	def sq_idx(self, x: int, y: int) -> tuple:
+	def sq_iter(self, x: int, y: int) -> list:
+		s_x = x - (x % self.sq_sz)
+		s_y = y - (y % self.sq_sz)
+		
+		return [(i_x + s_x, i_y + s_y) for i_x in range(self.sq_sz) for i_y in range(self.sq_sz)]
+
+	def sq_coord(self, x: int, y: int) -> tuple:
 		return (y // self.sq_sz) * self.sq_sz + x // self.sq_sz, (y % self.sq_sz) * self.sq_sz + x % self.sq_sz
 	
 	def __str__(self) -> str:
-		vert = '-' * (self.nums + self.sq_sz + 1) + '\n'
+		vert = '-' * (self.nums + self.sq_sz + 1)
 		out = ''
 
 		for y in range(self.nums):
-			if y % self.sq_sz == 0: out += vert
+			if y % self.sq_sz == 0: out += vert + '\n'
 
 			for x in range(self.nums):
 				if x % self.sq_sz == 0: out += '|'
@@ -111,25 +114,30 @@ class Sudoku:
 
 	# horrible performance probably
 	def valid_place(self, x: int, y: int, n: int) -> bool:
-		return not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_idx(x, y)[0]])
+		return self.l[y][x] == 0 and not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_coord(x, y)[0]])
 
-	def update_mask(self, x: int, y: int, prev: int = None):
-		# more complicated
-		if self.l[y][x] == 0:
+	def update_mask(self, x: int, y: int, prev: int):
+		# have to check for every position that could be placed
+		# probably shit slow
+		if prev != 0:
+			prev -= 1 # convert from l index to mask index
+
 			for n in range(self.nums):
 				if n != prev:
-					# only set if number is blocking
+					# re-calc position that num was removed at
 					self.mask[n][y][x] = self.valid_place(x, y, n + 1)
 				else:
+					# loop through sq, recalc
+					for i_x, i_y in self.sq_iter(x, y):
+						self.mask[n][i_y][i_x] = self.valid_place(i_x, i_y, n + 1)
+
 					for i in range(self.nums):
-						# loop through row
-						if self.mask[n][i][x] == 0:
-							self.mask[n][i][x] = self.valid_place(x, y, n + 1)
-						# loop through col
-						if self.mask[y][i][n] == 0:
-							self.mask[y][i][n] = self.valid_place(x, y, n + 1)
-		else:
-			# new number has been placed, cannot be placed anywhere else
+						# loop through col, recalc
+						self.mask[n][i][x] = self.valid_place(x, i, n + 1)
+						# loop through row, recalc
+						self.mask[n][y][i] = self.valid_place(i, y, n + 1)
+		if self.l[y][x] != 0:
+			# new number has been placed, set to false in every mask
 			for n in range(self.nums):
 				self.mask[n][y][x] = False
 
@@ -141,11 +149,8 @@ class Sudoku:
 				self.mask[n][i][x] = False
 		
 			# set all of current sq to false
-			c_x = x - (x % self.sq_sz)
-			c_y = y - (y % self.sq_sz)
-			for i_y in range(self.sq_sz):
-				for i_x in range(self.sq_sz):
-					self.mask[n][i_y + c_y][i_x + c_x] = False
+			for i_x, i_y in self.sq_iter(x, y):
+				self.mask[n][i_y][i_x] = False
 
 backtracks = 0
 
@@ -156,24 +161,28 @@ def solve_bad(s: Sudoku) -> Sudoku:
 
 	if s.solved():
 		return s
+	
+	print(s)
 
 	# find first zero
-	y = 0
 	x = 0
-	for y_ in range(s.nums):
-		for x_ in range(s.nums):
-			if s.l[y_][x_] == 0:
-				x, y = x_, y_
+	y = 0
+	for j in range(s.nums):
+		for i in range(s.nums):
+			if s.l[j][i] == 0:
+				x, y = i, j
 				break
-		else: continue
+		else:
+			continue
+		break
 
 	# attempt to place all numbers
 	for n in range(1, s.nums + 1):
-		# if s.mask[n - 1][y][x]:
 		# set and recurse
-		s[x, y] = n
+		if s.mask[n - 1][y][x]:
+			s[x, y] = n
 
-		if s.valid():
+			# if s.valid():
 			# recurse
 			tmp = solve_bad(s)
 
@@ -186,6 +195,8 @@ def solve_bad(s: Sudoku) -> Sudoku:
 	# if no numbers can be placed here
 	backtracks += 1
 	return None
+
+# normal backtracks: 576828, 138 seconds
 
 def main():
 	s = Sudoku([
@@ -207,18 +218,10 @@ def main():
 	# 	[0, 0, 6, 0, 0, 0, 0, 0, 0],
 	# ])
 
-	s = Sudoku([
-		[2, 0, 3, 0],
-		[0, 0, 4, 0],
-		[4, 0, 0, 1],
-		[0, 0, 0, 0],
-	], 2)
 
-	s[2, 0] = 0
-	# [[False, (True), True, True], [True, True, False, (True)], [False, True, (True), False], [True, True, (True), True]]
-	print(s.mask[2]) # 3
-	print(s)
-
+	print(s.mask[1])
+	s[0, 0] = 0
+	print(s.mask[1])
 	# print(solve_bad(s))
 	# print(f'backtracks: {backtracks}')
 
