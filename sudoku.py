@@ -66,7 +66,7 @@ class Sudoku:
 		self.squares[i[0]][i[1]] = val
 
 		self.update_mask(x, y, prev)
-	
+
 	# lol
 	def __delitem__(self, pos: tuple): pass
 
@@ -161,8 +161,6 @@ def solve_bad(s: Sudoku) -> Sudoku:
 
 	if s.solved():
 		return s
-	
-	print(s)
 
 	# find first zero
 	x = 0
@@ -182,48 +180,44 @@ def solve_bad(s: Sudoku) -> Sudoku:
 		if s.mask[n - 1][y][x]:
 			s[x, y] = n
 
-			# if s.valid():
 			# recurse
 			tmp = solve_bad(s)
 
 			# if the board was valid, return that board
 			if tmp:
 				return tmp
+			s[x, y] = 0
 
-	# this board wasn't valid, reset to zero
-	s[x, y] = 0
 	# if no numbers can be placed here
 	backtracks += 1
 	return None
 
-# normal backtracks: 576828, 138 seconds
+# normal backtracks:   576828, 138 seconds
+# backtracks w/ mask: 1070531, 40 seconds
 
 def main():
-	s = Sudoku([
-		[2, 0, 0, 0],
-		[0, 0, 4, 0],
-		[4, 0, 1, 0],
-		[0, 0, 0, 0],
-	], 2)
-
 	# s = Sudoku([
-	# 	[0, 0, 0, 0, 0, 0, 2, 0, 0],
-	# 	[0, 8, 0, 0, 0, 7, 0, 9, 0],
-	# 	[6, 0, 2, 0, 0, 0, 5, 0, 0],
-	# 	[0, 7, 0, 0, 6, 0, 0, 0, 0],
-	# 	[0, 0, 0, 9, 0, 1, 0, 0, 0],
-	# 	[0, 0, 0, 0, 2, 0, 0, 4, 0],
-	# 	[0, 0, 5, 0, 0, 0, 6, 0, 3],
-	# 	[0, 9, 0, 4, 0, 0, 0, 7, 0],
-	# 	[0, 0, 6, 0, 0, 0, 0, 0, 0],
-	# ])
+	# 	[2, 0, 0, 0],
+	# 	[0, 0, 4, 0],
+	# 	[4, 0, 1, 0],
+	# 	[0, 0, 0, 0],
+	# ], 2)
+
+	s = Sudoku([
+		[0, 0, 0, 0, 0, 0, 2, 0, 0],
+		[0, 8, 0, 0, 0, 7, 0, 9, 0],
+		[6, 0, 2, 0, 0, 0, 5, 0, 0],
+		[0, 7, 0, 0, 6, 0, 0, 0, 0],
+		[0, 0, 0, 9, 0, 1, 0, 0, 0],
+		[0, 0, 0, 0, 2, 0, 0, 4, 0],
+		[0, 0, 5, 0, 0, 0, 6, 0, 3],
+		[0, 9, 0, 4, 0, 0, 0, 7, 0],
+		[0, 0, 6, 0, 0, 0, 0, 0, 0],
+	])
 
 
-	print(s.mask[1])
-	s[0, 0] = 0
-	print(s.mask[1])
-	# print(solve_bad(s))
-	# print(f'backtracks: {backtracks}')
+	print(solve_bad(s))
+	print(f'backtracks: {backtracks}')
 
 if __name__ == '__main__':
 	main()
