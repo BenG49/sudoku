@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 def arr_init(x: int, y: int, n: int) -> list:
 	return [[n for _ in range(x)] for _ in range(y)]
 
@@ -163,8 +165,13 @@ backtracks = 0
 
 # given a valid board, returns None if not solvable
 # insanely bad
-def solve_bad(s: Sudoku) -> Sudoku:
+def solve_bad(i: Sudoku, pos = None, n = None) -> Sudoku:
 	global backtracks
+
+	s = deepcopy(i)
+
+	if pos:
+		s[pos] = n
 
 	if s.solved():
 		return s
@@ -188,17 +195,14 @@ def solve_bad(s: Sudoku) -> Sudoku:
 	for n in range(1, s.nums + 1):
 		# set and recurse
 		if s.mask[n - 1][y][x]:
-			s[x, y] = n
+			# s[x, y] = n
 
 			# recurse
-			tmp = solve_bad(s)
+			tmp = solve_bad(s, (x, y), n)
 
 			# if the board was valid, return that board
 			if tmp:
 				return tmp
-
-			# reset mask
-			s[x, y] = 0
 
 	# if no numbers can be placed here
 	backtracks += 1
@@ -208,24 +212,24 @@ def solve_bad(s: Sudoku) -> Sudoku:
 # backtracks w/ mask: 1070531, 40 seconds
 
 def main():
-	# s = Sudoku([
-	# 	[2, 0, 0, 0],
-	# 	[0, 0, 4, 0],
-	# 	[4, 0, 1, 0],
-	# 	[0, 0, 0, 0],
-	# ], 2)
-
 	s = Sudoku([
-		[0, 0, 0, 0, 0, 0, 2, 0, 0],
-		[0, 8, 0, 0, 0, 7, 0, 9, 0],
-		[6, 0, 2, 0, 0, 0, 5, 0, 0],
-		[0, 7, 0, 0, 6, 0, 0, 0, 0],
-		[0, 0, 0, 9, 0, 1, 0, 0, 0],
-		[0, 0, 0, 0, 2, 0, 0, 4, 0],
-		[0, 0, 5, 0, 0, 0, 6, 0, 3],
-		[0, 9, 0, 4, 0, 0, 0, 7, 0],
-		[0, 0, 6, 0, 0, 0, 0, 0, 0],
-	])
+		[2, 0, 0, 0],
+		[0, 0, 4, 0],
+		[4, 0, 1, 0],
+		[0, 0, 0, 0],
+	], 2)
+
+	# s = Sudoku([
+	# 	[0, 0, 0, 0, 0, 0, 2, 0, 0],
+	# 	[0, 8, 0, 0, 0, 7, 0, 9, 0],
+	# 	[6, 0, 2, 0, 0, 0, 5, 0, 0],
+	# 	[0, 7, 0, 0, 6, 0, 0, 0, 0],
+	# 	[0, 0, 0, 9, 0, 1, 0, 0, 0],
+	# 	[0, 0, 0, 0, 2, 0, 0, 4, 0],
+	# 	[0, 0, 5, 0, 0, 0, 6, 0, 3],
+	# 	[0, 9, 0, 4, 0, 0, 0, 7, 0],
+	# 	[0, 0, 6, 0, 0, 0, 0, 0, 0],
+	# ])
 
 
 	print(solve_bad(s))
