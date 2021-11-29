@@ -5,6 +5,7 @@ from math import sqrt
 - if mask for a square is arranged in a straight line
 	- update mask in that direction
 - if mask for a square only contains one item, place that and update mask
+- treat n numbers sharing n tiles in a square as filled squares
 '''
 
 # does not modify original list, l must only contain (1-len(l))
@@ -23,21 +24,26 @@ def nonzero_repeats(l: list) -> bool:
 class Sudoku:
 	EMPTY = -1
 
+	# start is inputted as 1-indexed sudoku board
 	def __init__(self, start: list, sidelen: int = 9):
 		self.len = sidelen
 		self.sqrtlen = sqrt(self.len)
 
 		# useful for solved()
 		self.sum = (self.len * (self.len + 1)) // 2
+
+		# fix array, sub 1 from each
+		for i in range(len(start)):
+			start[i] -= 1
 		self.arr = start
 
 		# 9*9 array for 9 numbers
-		self.mask = [[[True] * (self.len * self.len)] * self.len]
+		self.mask = [[True for _ in range(self.len * self.len)] for _ in range(self.len)]
 
 		# mask of possible positions for each number
-		for y in range(self.nums):
-			for x in range(self.nums):
-				if self.l[y][x] != 0:
+		for y in range(self.len):
+			for x in range(self.len):
+				if self[x, y] != Sudoku.EMPTY:
 					self.update_mask(x, y, 0)
 
 	def __str__(self) -> str:
@@ -50,7 +56,7 @@ class Sudoku:
 			for x in range(self.nums):
 				if x % self.sq_sz == 0: out += '|'
 
-				out += str(self[x, y]) if self[x, y] else ' '
+				out += str(self[x, y] + 1) if self[x, y] != Sudoku.EMPTY else ' '
 
 			out += '|\n'
 
@@ -60,80 +66,116 @@ class Sudoku:
 	
 	def __getitem__(self, pos: tuple) -> int:
 		return self.arr[pos[1] * self.len + pos[0]]
+
+	def get_mask(self, n: int, x: int, y: int) -> bool:
+		return self.mask[n][y * self.len + x]
 	
 	def __setitem__(self, pos: tuple, val: int):
 		if val < 0 or val > self.nums:
 			raise ValueError
 
-		i = pos[1] * self.len + pos[0]
-		prev = self.arr[i]
-		self.arr[i] = val
+		prev = self[pos]
+		self[pos] = val
 
-		self.update_mask(x, y, prev)
+		self.update_mask(*pos, prev)
+
+	def set_mask(self, n: int, x: int, y: int, val: bool):
+		self.mask[n][y * self.len + x] = val
 
 	# lol
 	def __delitem__(self, pos: tuple): pass
 	
 	def valid(self) -> bool:
-		for i in range(self.nums):
+		for i in range(self.len):
 			if nonzero_repeats(self.l[i]) or nonzero_repeats(self.cols[i]) or nonzero_repeats(self.squares[i]):
 				return False
 
 		return True
 	
 	def solved(self) -> bool:
-		for i in range(self.nums):
+		for i in range(self.len):
 			if sum(self.l[i]) != self.num_sum or sum(self.cols[i]) != self.num_sum or sum(self.squares[i]) != self.num_sum:
 				return False
 
 		# passed sums test, check if valid
 		return self.valid()
 
-	# horrible performance probably
-	def valid_place(self, x: int, y: int, n: int) -> bool:
-		return self.l[y][x] == 0 and not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_coord(x, y)[0]])
+	# passed normal coordinates, iterate over that square
+	# if func returns True, return True
+	def iter_square(self, x: int, y: int, func):
+		start_x = int(x - x % self.sqrtlen)
 
-	def update_mask(self, x: int, y: int, prev: int):
-		# update square for n
-		def update_square(n):
-			start_x = x - x % self.sqrtlen
-			start_y = y - y % self.sqrtlen
+		x, y = start_x, int(y - y % self.sqrtlen)
 
-		# if previous was empty or was just set to empty
-		update_cur_sq = prev == Sudoku.EMPTY or self[x, y] == Sudoku.EMPTY
+		for _ in range(self.len):
+			val = func(x, y)
+			if val == True: return True
 
-		# if previous wasn't empty, have to update previous number's mask
-		if prev != Sudoku.EMPTY:
-			# loop through sq, recalc
-			for i_x, i_y in self.sq_iter(x, y):
-				self.mask[prev][i_y][i_x] = self.valid_place(i_x, i_y, n + 1)
+			x += 1
 
-			for i in range(self.nums):
-				# loop through col, recalc
-				self.mask[prev][i][x] = self.valid_place(x, i, n + 1)
-				# loop through row, recalc
-				self.mask[prev][y][i] = self.valid_place(i, y, n + 1)
+			if x == start_x + self.sqrtlen:
+				x = start_x
+				y += 1
 
-			for n in range(self.nums):
-				elif update_cur_sq:
-					# re-calc position that num was removed at
-					self.mask[n][y][x] = self.valid_place(x, y, n + 1)
+		return False
 
-		if self.l[y][x] != 0:
-			# new number has been placed, set to false in every mask
-			for n in range(self.nums):
-				self.mask[n][y][x] = False
+	def in_row(self, y: int, n: int) -> bool:
+		for i in range(self.len):
+			if self[i, y] == n: return False
+		return True
 
-			n = self.l[y][x] - 1
+	def in_col(self, x: int, n: int) -> bool:
+		for i in range(self.len):
+			if self[x, i] == n: return False
+		return True
 
-			# loop through cross around x, y
-			for i in range(self.nums):
-				self.mask[n][y][i] = False
-				self.mask[n][i][x] = False
+	# returns if valid for num n to be placed at x, y
+	def valid_pos(self, x: int, y: int, n: int, check_row: bool = True, check_col: bool = True) -> bool:
+		if self[x, y] != Sudoku.EMPTY: return False
+		if check_row and self.in_row(y, n): return False
+		if check_col and self.in_col(x, n): return False
 		
-			# set all of current sq to false
-			for i_x, i_y in self.sq_iter(x, y):
-				self.mask[n][i_y][i_x] = False
+		# check square
+		if self.iter_square(x, y, lambda _x, _y: self[_x, _y] == n):
+			return False
+	
+		return True
+
+	# assumes: prev != cur, prev not in same row, col, or square
+	def update_mask(self, x: int, y: int, prev: int):
+		cur = self[x, y]
+
+		# set rows, cols, and square to false in mask
+		if cur != Sudoku.EMPTY:
+			# set square to false in mask
+			self.iter_square(x, y, lambda x, y: self.set_mask(cur, x, y, False))
+
+			# set rows and cols to false in mask
+			for i in range(self.len):
+				self.set_mask(cur, i, y, False)
+				self.set_mask(cur, x, i, False)
+
+		# recalc mask for prev in rows, cols, sq
+		# recalc mask at x, y for other numbers if cur == empty
+		if prev != Sudoku.EMPTY:
+			# recalc mask for prev in rows, cols
+			for i in range(self.len):
+ 				# don't need to check if row is valid, iterating over row
+				self.set_mask(prev, i, y,
+					self.valid_pos(i, y, prev, False))
+
+ 				# don't need to check if col is valid, iterating over col
+				self.set_mask(prev, x, i,
+					self.valid_pos(x, i, prev, check_col=False))
+
+			# recalc mask for prev in sq
+			self.iter_square(x, y,
+				lambda x, y: self.set_mask(prev, x, y, self.valid_pos(x, y, prev)))
+
+			if cur == Sudoku.EMPTY:
+				for i in range(self.len):
+					if i != prev:
+						self.set_mask(i, x, y, self.valid_pos(x, y, i))
 
 backtracks = 0
 
@@ -187,15 +229,15 @@ def main():
 	# ], 2)
 
 	s = Sudoku([
-		[0, 0, 0, 0, 0, 0, 2, 0, 0],
-		[0, 8, 0, 0, 0, 7, 0, 9, 0],
-		[6, 0, 2, 0, 0, 0, 5, 0, 0],
-		[0, 7, 0, 0, 6, 0, 0, 0, 0],
-		[0, 0, 0, 9, 0, 1, 0, 0, 0],
-		[0, 0, 0, 0, 2, 0, 0, 4, 0],
-		[0, 0, 5, 0, 0, 0, 6, 0, 3],
-		[0, 9, 0, 4, 0, 0, 0, 7, 0],
-		[0, 0, 6, 0, 0, 0, 0, 0, 0],
+		0, 0, 0, 0, 0, 0, 2, 0, 0,
+		0, 8, 0, 0, 0, 7, 0, 9, 0,
+		6, 0, 2, 0, 0, 0, 5, 0, 0,
+		0, 7, 0, 0, 6, 0, 0, 0, 0,
+		0, 0, 0, 9, 0, 1, 0, 0, 0,
+		0, 0, 0, 0, 2, 0, 0, 4, 0,
+		0, 0, 5, 0, 0, 0, 6, 0, 3,
+		0, 9, 0, 4, 0, 0, 0, 7, 0,
+		0, 0, 6, 0, 0, 0, 0, 0, 0,
 	])
 
 

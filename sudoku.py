@@ -50,7 +50,7 @@ class Sudoku:
 	def __getitem__(self, pos: tuple) -> int:
 		x, y = pos
 		return self.l[y][x]
-	
+
 	def __setitem__(self, pos: tuple, val: int):
 		if val < 0 or val > self.nums:
 			raise ValueError
@@ -116,16 +116,20 @@ class Sudoku:
 	def valid_place(self, x: int, y: int, n: int) -> bool:
 		return self.l[y][x] == 0 and not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_coord(x, y)[0]])
 
+	# have to check for every position that could be placed
+	# probably shit slow
 	def update_mask(self, x: int, y: int, prev: int):
-		# have to check for every position that could be placed
-		# probably shit slow
+		# because prev was deleted, recalculate all squares
 		if prev != 0:
 			prev -= 1 # convert from l index to mask index
 
+			# fix up all of the masks
 			for n in range(self.nums):
+				# only calculate position that's being set for other masks
 				if n != prev:
 					# re-calc position that num was removed at
 					self.mask[n][y][x] = self.valid_place(x, y, n + 1)
+				# recalculate row, col, square positions
 				else:
 					# loop through sq, recalc
 					for i_x, i_y in self.sq_iter(x, y):
@@ -136,14 +140,17 @@ class Sudoku:
 						self.mask[n][i][x] = self.valid_place(x, i, n + 1)
 						# loop through row, recalc
 						self.mask[n][y][i] = self.valid_place(i, y, n + 1)
+
+		# if it wasn't setting to zero
 		if self.l[y][x] != 0:
 			# new number has been placed, set to false in every mask
 			for n in range(self.nums):
 				self.mask[n][y][x] = False
 
+			# index
 			n = self.l[y][x] - 1
 
-			# loop through cross around x, y
+			# loop through cross around x, y, set to false
 			for i in range(self.nums):
 				self.mask[n][y][i] = False
 				self.mask[n][i][x] = False
@@ -161,6 +168,9 @@ def solve_bad(s: Sudoku) -> Sudoku:
 
 	if s.solved():
 		return s
+
+	for n in range(s.nums):
+		pass
 
 	# find first zero
 	x = 0
@@ -186,6 +196,8 @@ def solve_bad(s: Sudoku) -> Sudoku:
 			# if the board was valid, return that board
 			if tmp:
 				return tmp
+
+			# reset mask
 			s[x, y] = 0
 
 	# if no numbers can be placed here
