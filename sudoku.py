@@ -13,7 +13,27 @@ backtracks = 0
 class Sudoku:
 	EMPTY = -1
 
-	# start is inputted as 1-indexed sudoku board
+	def parse(s: str, digits: int = 1):
+		out = []
+
+		i = 0
+		while i < len(s):
+			while not s[i].isdigit():
+				i += 1
+
+				if i == len(s):
+					break
+
+			if i == len(s):
+				break
+
+			out.append(int(s[i : i + digits]) - 1)
+
+			i += digits
+
+		return Sudoku(out, int(len(out) ** 0.5))
+
+	# start is inputted as 0-indexed sudoku board
 	def __init__(self, start: list, sidelen: int = 9):
 		self.len = sidelen
 		self.boxlen = int(self.len ** 0.5)
@@ -21,9 +41,6 @@ class Sudoku:
 		# useful for solved()
 		self.sum = (self.len * (self.len + 1)) // 2
 
-		# fix array, sub 1 from each
-		for i in range(len(start)):
-			start[i] -= 1
 		self.arr = start
 
 		# 9*9 array for 9 numbers
@@ -277,7 +294,7 @@ class Sudoku:
 			return s
 
 		print(s)
-		print(s.mask_str(0))
+		print(s.mask_str(1))
 		exit()
 
 		for y in range(s.len):
@@ -306,37 +323,31 @@ def main():
 	# 	0, 0, 0, 0,
 	# ], 4)
 
-	s = Sudoku([
-		0, 0, 0, 2, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 6, 0, 4, 0, 3,
-		0, 0, 0, 0, 0, 5, 0, 7, 0,
-		0, 7, 0, 0, 0, 2, 8, 0, 0,
-		5, 1, 0, 0, 0, 4, 9, 0, 0,
-		0, 0, 9, 0, 0, 3, 0, 0, 0,
-		0, 0, 0, 0, 0, 9, 0, 0, 0,
-		0, 0, 2, 0, 0, 0, 0, 9, 8,
-		0, 8, 3, 1, 0, 0, 2, 0, 0,
+	s = Sudoku.parse(
+		'''
+		000200000
+		000060403
+		000005070
+		070002800
+		510004900
+		009003000
+		000009000
+		002000098
+		083100200
+		'''
 
-		# 5, 3, 0, 0, 7, 0, 0, 0, 0,
-		# 6, 0, 0, 1, 9, 5, 0, 0, 0,
-		# 0, 9, 8, 0, 0, 0, 0, 6, 0,
-		# 8, 0, 0, 0, 6, 0, 0, 0, 3,
-		# 4, 0, 0, 8, 0, 3, 0, 0, 1,
-		# 7, 0, 0, 0, 2, 0, 0, 0, 6,
-		# 0, 6, 0, 0, 0, 0, 2, 8, 0,
-		# 0, 0, 0, 4, 1, 9, 0, 0, 5,
-		# 0, 0, 0, 0, 8, 0, 0, 7, 9,
-
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	])
+		# '''
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# 000000000
+		# '''
+	)
 
 
 	print(s)
