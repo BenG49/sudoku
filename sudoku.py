@@ -96,7 +96,7 @@ class Sudoku:
 
 				if i is not None:
 					if self.get_mask(i, x, y):
-						out += '+'
+						out += '•'
 					else:
 						out += ' ' if self[x, y] == Sudoku.EMPTY else '='
 				else:
@@ -245,8 +245,38 @@ class Sudoku:
 			# set false in every other mask
 			self.set_mask(i, x, y, False)
 
+	# given coords to top left of square
+	# if it finds a line, returns (0, n) for row and (n, 0) for col
+	def mask_line(self, x: int, y: int, n: int):
+		xpos_found, ypos_found = -1, -1
 
-	# pos and val are a guess
+		def i(_x, _y):
+			nonlocal xpos_found, ypos_found
+
+			if self.get_mask(n, _x, _y):
+				if xpos_found == -1: xpos_found = _x
+				elif xpos_found != _x: xpos_found = None
+
+				if ypos_found == -1: ypos_found = _y
+				elif ypos_found != _y: ypos_found = None
+
+				if xpos_found is None and ypos_found is None:
+					return True # break
+
+		# points definitely werent in line
+		if self.iter_square(x, y, i):
+			return None
+
+		# no points were found
+		if xpos_found == -1 and ypos_found == -1:
+			return None
+
+		if xpos_found != -1 and xpos_found is not None:
+			return (xpos_found, 0)
+		if ypos_found != -1 and ypos_found is not None:
+			return (0, ypos_found)
+
+	# given position of a guess
 	def solve(self, pos: tuple = None, val: int = None):
 		global backtracks
 
@@ -260,7 +290,7 @@ class Sudoku:
 		while changed:
 			changed = False
 
-			# look for only one valid placement in mask
+			# look for rows or cols where theres only one valid place in row/col
 			for n in range(s.len):
 				# check rows and cols
 				r_pos, c_pos = -1, -1
@@ -290,12 +320,22 @@ class Sudoku:
 					# reset pos
 					r_pos, c_pos = -1, -1
 
+			# look through every square and check if there is a line
+			# in the mask
+			# ex
+			# | = |
+			# |== |
+			# |••=|
+
 		if s.solved():
 			return s
 
-		# print(s)
-		# print(s.mask_str(1))
-		# exit()
+		print(s)
+		print(s.mask_str(1))
+
+		print(self.mask_line(0, 1, 1))
+
+		exit()
 
 		for y in range(s.len):
 			for x in range(s.len):
@@ -317,29 +357,29 @@ class Sudoku:
 
 def main():
 	s = Sudoku.parse(
-		# '''
-		# 000200000
-		# 000060403
-		# 000005070
-		# 070002800
-		# 510004900
-		# 009003000
-		# 000009000
-		# 002000098
-		# 083100200
-		# '''
+		'''
+		000200000
+		000060403
+		000005070
+		070002800
+		510004900
+		009003000
+		000009000
+		002000098
+		083100200
+		'''
 
-		'''
-		002070010
-		700090020
-		060040003
-		090030002
-		058000100
-		007000004
-		900000008
-		000400200
-		803001005
-		'''
+		# '''
+		# 002070010
+		# 700090020
+		# 060040003
+		# 090030002
+		# 058000100
+		# 007000004
+		# 900000008
+		# 000400200
+		# 803001005
+		# '''
 	)
 
 	print(s)
