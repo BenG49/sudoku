@@ -1,238 +1,346 @@
+'''
+- create mask of possible moves for each number - DONE
+- if mask for a square only contains one item, place that and update mask - DONE
+- if mask for a square is arranged in a straight line
+	- update mask in that direction
+- treat n numbers sharing n tiles in a square as filled squares
+'''
+
 from copy import deepcopy
 
-def arr_init(x: int, y: int, n: int) -> list:
-	return [[n for _ in range(x)] for _ in range(y)]
-
-# does not modify original list, l must only contain (1-len(l))
-def nonzero_repeats(l: list) -> bool:
-	visited = [False] * len(l)
-
-	for n in l:
-		if n == 0: continue
-
-		if visited[n - 1]: return True
-
-		visited[n - 1] = True
-
-	return False
+backtracks = 0
 
 class Sudoku:
-	# sz = len of smaller square (sqrt of max number)
-	def __init__(self, l: list = None, sz: int = 3):
-		self.sq_sz = sz if sz > 1 else 3
-		# the max number in the game
-		self.nums = self.sq_sz * self.sq_sz
+	EMPTY = -1
+
+	# start is inputted as 1-indexed sudoku board
+	def __init__(self, start: list, sidelen: int = 9):
+		self.len = sidelen
+		self.boxlen = int(self.len ** 0.5)
+
 		# useful for solved()
-		self.num_sum = (self.nums * (self.nums + 1)) // 2
+		self.sum = (self.len * (self.len + 1)) // 2
 
-		# if given array is a valid square
-		if l and len(l) == self.nums and all(len(r) == self.nums for r in l):
-			self.l = l
-		else:
-			self.l = arr_init(self.nums, self.nums, 0)
+		# fix array, sub 1 from each
+		for i in range(len(start)):
+			start[i] -= 1
+		self.arr = start
 
-		# mirror array arranged in columns
-		self.cols = [[self.l[y][x] for y in range(self.nums)] for x in range(self.nums)]
+		# 9*9 array for 9 numbers
+		self.mask = [[True for _ in range(self.len * self.len)] for _ in range(self.len)]
 
-		# mirror array arranged in squares
-		self.squares = arr_init(self.nums, self.nums, 0)
-		for y in range(self.nums):
-			for x in range(self.nums):
-				sq, idx = self.sq_coord(x, y)
-				self.squares[sq][idx] = self.l[y][x]
+		# init mask
+		for y in range(self.len):
+			for x in range(self.len):
+				cur = self[x, y]
 
-		# NOTE: index 0 is number 1
-		self.mask = [arr_init(self.nums, self.nums, True) for _ in range(self.nums)]
-		# mask of possible positions for each number
-		for y in range(self.nums):
-			for x in range(self.nums):
-				if self.l[y][x] != 0:
-					self.update_mask(x, y, 0)
-	
-	def __getitem__(self, pos: tuple) -> int:
-		x, y = pos
-		return self.l[y][x]
+				if cur == Sudoku.EMPTY:
+					continue
 
-	def __setitem__(self, pos: tuple, val: int):
-		if val < 0 or val > self.nums:
-			raise ValueError
+				# set mask in cross false
+				for i in range(self.len):
+					self.set_mask(cur, i, y, False)
+					self.set_mask(cur, x, i, False)
 
-		x, y = pos
-		prev = self.l[y][x]
-		self.l[y][x] = val
+					# square to false in every mask
+					self.set_mask(i, x, y, False)
 
-		# update mirror arrays
-		self.cols[x][y] = val
+				# set mask in square false
+				self.iter_square(x, y, lambda x, y: self.set_mask(cur, x, y, False))
 
-		i = self.sq_coord(x, y)
-		self.squares[i[0]][i[1]] = val
-
-		self.update_mask(x, y, prev)
-
-	# lol
-	def __delitem__(self, pos: tuple): pass
-
-	def sq_iter(self, x: int, y: int) -> list:
-		s_x = x - (x % self.sq_sz)
-		s_y = y - (y % self.sq_sz)
-		
-		return [(i_x + s_x, i_y + s_y) for i_x in range(self.sq_sz) for i_y in range(self.sq_sz)]
-
-	def sq_coord(self, x: int, y: int) -> tuple:
-		return (y // self.sq_sz) * self.sq_sz + x // self.sq_sz, (y % self.sq_sz) * self.sq_sz + x % self.sq_sz
-	
 	def __str__(self) -> str:
-		vert = '-' * (self.nums + self.sq_sz + 1)
 		out = ''
+		vert = '-' * (self.len + self.boxlen + 1)
 
-		for y in range(self.nums):
-			if y % self.sq_sz == 0: out += vert + '\n'
+		for y in range(self.len):
+			if y % self.boxlen == 0: out += vert + '\n'
 
-			for x in range(self.nums):
-				if x % self.sq_sz == 0: out += '|'
+			for x in range(self.len):
+				if x % self.boxlen == 0: out += '|'
 
-				out += str(self[x, y]) if self[x, y] else ' '
+				out += str(self[x, y] + 1) if self[x, y] != Sudoku.EMPTY else ' '
 
 			out += '|\n'
 
 		out += vert
 
 		return out
+
+	# prints selected mask if given, else print whole mask
+	def mask_str(self, i: int = None) -> str:
+		out = ''
+		vert = '-' * ((self.len * self.len + self.len + 1) if i is None else (self.len + self.boxlen + 1))
+
+		for y in range(self.len):
+			if y % self.boxlen == 0: out += vert + '\n'
+
+			for x in range(self.len):
+				out += '|' if x % self.boxlen == 0 else ('/' if i is None else '')
+
+				if i is not None:
+					if self.get_mask(i, x, y):
+						out += '+'
+					else:
+						out += ' ' if self[x, y] == Sudoku.EMPTY else '='
+				else:
+					for n in range(self.len):
+						out += str(n + 1) if self.get_mask(n, x, y) else ' '
+
+			out += '|\n'
+
+		out += vert
+
+		return out
+
+	def __getitem__(self, pos: tuple) -> int:
+		return self.arr[pos[1] * self.len + pos[0]]
+
+	def get_mask(self, n: int, x: int, y: int) -> bool:
+		return self.mask[n][y * self.len + x]
+
+	# zero indexed number
+	def __setitem__(self, pos: tuple, val: int):
+		if val < 0 or val >= self.len:
+			raise ValueError
+
+		self.arr[pos[0] + pos[1] * self.len] = val
+
+		self.update_mask(*pos)
+
+	def set_mask(self, n: int, x: int, y: int, val: bool):
+		self.mask[n][y * self.len + x] = val
+
+	# lol
+	def __delitem__(self, pos: tuple): pass
 	
 	def valid(self) -> bool:
-		for i in range(self.nums):
-			if nonzero_repeats(self.l[i]) or nonzero_repeats(self.cols[i]) or nonzero_repeats(self.squares[i]):
+		count = [0] * self.len
+
+		for i in range(self.len):
+			for j in range(self.len):
+				c = self[i, j]
+				r = self[j, i]
+
+				if c == Sudoku.EMPTY or r == Sudoku.EMPTY:
+					return False
+
+				count[c] += 1
+				count[r] += 1
+
+		for n in count:
+			if n != self.len * 2:
+				return False
+
+		def sq_chk(x, y): count[self[x, y]] += 1
+
+		for i in range(self.boxlen):
+			for j in range(self.boxlen):
+				self.iter_square(i, j, sq_chk)
+
+		for n in count:
+			if n != self.len * 3:
 				return False
 
 		return True
 	
 	def solved(self) -> bool:
-		for i in range(self.nums):
-			if sum(self.l[i]) != self.num_sum or sum(self.cols[i]) != self.num_sum or sum(self.squares[i]) != self.num_sum:
-				return False
+		s = 0
+
+		for i in range(self.len):
+			for j in range(self.len):
+				c = self[i, j]
+				r = self[j, i]
+
+				if c == Sudoku.EMPTY or r == Sudoku.EMPTY:
+					return False
+
+				s += c + r + 2 # convert from 0 to 1 indexed
+
+		if s != self.sum * self.len * 2:
+			return False
+
+		def sq_sum(x, y):
+			nonlocal s
+			s += self[x, y] + 1
+
+		for i in range(self.boxlen):
+			for j in range(self.boxlen):
+				self.iter_square(i, j, sq_sum)
+
+		if s != self.sum * self.len * 3:
+			return False
 
 		# passed sums test, check if valid
 		return self.valid()
 
-	# horrible performance probably
-	def valid_place(self, x: int, y: int, n: int) -> bool:
-		return self.l[y][x] == 0 and not (n in self.cols[x] or n in self.l[y] or n in self.squares[self.sq_coord(x, y)[0]])
+	# passed normal coordinates, iterate over that square
+	# if func returns True, return True
+	def iter_square(self, x: int, y: int, func):
+		start_x = int(x - x % self.boxlen)
 
-	# have to check for every position that could be placed
-	# probably shit slow
-	def update_mask(self, x: int, y: int, prev: int):
-		# because prev was deleted, recalculate all squares
-		if prev != 0:
-			prev -= 1 # convert from l index to mask index
+		x, y = start_x, int(y - y % self.boxlen)
 
-			# fix up all of the masks
-			for n in range(self.nums):
-				# only calculate position that's being set for other masks
-				if n != prev:
-					# re-calc position that num was removed at
-					self.mask[n][y][x] = self.valid_place(x, y, n + 1)
-				# recalculate row, col, square positions
-				else:
-					# loop through sq, recalc
-					for i_x, i_y in self.sq_iter(x, y):
-						self.mask[n][i_y][i_x] = self.valid_place(i_x, i_y, n + 1)
+		for _ in range(self.len):
+			if func(x, y) == True:
+				return True
 
-					for i in range(self.nums):
-						# loop through col, recalc
-						self.mask[n][i][x] = self.valid_place(x, i, n + 1)
-						# loop through row, recalc
-						self.mask[n][y][i] = self.valid_place(i, y, n + 1)
+			x += 1
 
-		# if it wasn't setting to zero
-		if self.l[y][x] != 0:
-			# new number has been placed, set to false in every mask
-			for n in range(self.nums):
-				self.mask[n][y][x] = False
+			if x == start_x + self.boxlen:
+				x = start_x
+				y += 1
 
-			# index
-			n = self.l[y][x] - 1
+		return False
 
-			# loop through cross around x, y, set to false
-			for i in range(self.nums):
-				self.mask[n][y][i] = False
-				self.mask[n][i][x] = False
+	def in_row(self, y: int, n: int) -> bool:
+		for i in range(self.len):
+			if self[i, y] == n: return False
+		return True
+
+	def in_col(self, x: int, n: int) -> bool:
+		for i in range(self.len):
+			if self[x, i] == n: return False
+		return True
+
+	# returns if valid for num n to be placed at x, y
+	def valid_pos(self, x: int, y: int, n: int, check_row: bool = True, check_col: bool = True) -> bool:
+		if self[x, y] != Sudoku.EMPTY: return False
+		if check_row and self.in_row(y, n): return False
+		if check_col and self.in_col(x, n): return False
 		
-			# set all of current sq to false
-			for i_x, i_y in self.sq_iter(x, y):
-				self.mask[n][i_y][i_x] = False
+		# check square
+		if self.iter_square(x, y, lambda _x, _y: self[_x, _y] == n):
+			return False
+	
+		return True
 
-backtracks = 0
+	def update_mask(self, x: int, y: int):
+		cur = self[x, y]
 
-# given a valid board, returns None if not solvable
-# insanely bad
-def solve_bad(i: Sudoku, pos = None, n = None) -> Sudoku:
-	global backtracks
+		# set square to false in mask
+		self.iter_square(x, y, lambda x, y: self.set_mask(cur, x, y, False))
 
-	s = deepcopy(i)
+		for i in range(self.len):
+			# set rows and cols to false in mask
+			self.set_mask(cur, i, y, False)
+			self.set_mask(cur, x, i, False)
 
-	if pos:
-		s[pos] = n
+			# set false in every other mask
+			self.set_mask(i, x, y, False)
 
-	if s.solved():
-		return s
 
-	for n in range(s.nums):
-		pass
+	# pos and val are a guess
+	def solve(self, pos: tuple = None, val: int = None):
+		global backtracks
 
-	# find first zero
-	x = 0
-	y = 0
-	for j in range(s.nums):
-		for i in range(s.nums):
-			if s.l[j][i] == 0:
-				x, y = i, j
-				break
-		else:
-			continue
-		break
+		# deepcopy in order to not have to revert moves
+		s = deepcopy(self)
 
-	# attempt to place all numbers
-	for n in range(1, s.nums + 1):
-		# set and recurse
-		if s.mask[n - 1][y][x]:
-			# s[x, y] = n
+		if pos:
+			s[pos] = val
 
-			# recurse
-			tmp = solve_bad(s, (x, y), n)
+		changed = True
+		while changed:
+			changed = False
 
-			# if the board was valid, return that board
-			if tmp:
-				return tmp
+			# look for only one valid placement in mask
+			for n in range(s.len):
+				# check rows and cols
+				r_pos, c_pos = -1, -1
 
-	# if no numbers can be placed here
-	backtracks += 1
-	return None
+				for j in range(s.len):
+					for i in range(s.len):
+						# uneccessary optimization
+						if not r_pos and not c_pos:
+							break
 
-# normal backtracks:   576828, 138 seconds
-# backtracks w/ mask: 1070531, 40 seconds
+						# cannot have multiple in the same row/col
+						# set to None if already set
+						if s.get_mask(n, i, j):
+							r_pos = i if r_pos == -1 else None
+
+						if s.get_mask(n, j, i):
+							c_pos = i if c_pos == -1 else None
+
+					# there was only one possible pos in the row/col, so it must be n
+					if r_pos and r_pos != -1:
+						s[r_pos, j] = n
+						changed = True
+					if c_pos and c_pos != -1:
+						s[j, c_pos] = n
+						changed = True
+
+					# reset pos
+					r_pos, c_pos = -1, -1
+
+		if s.solved():
+			return s
+
+		print(s)
+		print(s.mask_str(0))
+		exit()
+
+		for y in range(s.len):
+			for x in range(s.len):
+				# if square is empty
+				if s[x, y] == Sudoku.EMPTY:
+					# attempt to place all numbers
+					for n in range(s.len):
+						# if valid
+						if s.get_mask(n, x, y):
+							# guess
+							tmp = s.solve((x, y), n)
+
+							# if the board was valid, return that board
+							if tmp: return tmp
+
+		# if no numbers can be placed here
+		backtracks += 1
+		return None
 
 def main():
-	s = Sudoku([
-		[2, 0, 0, 0],
-		[0, 0, 4, 0],
-		[4, 0, 1, 0],
-		[0, 0, 0, 0],
-	], 2)
-
 	# s = Sudoku([
-	# 	[0, 0, 0, 0, 0, 0, 2, 0, 0],
-	# 	[0, 8, 0, 0, 0, 7, 0, 9, 0],
-	# 	[6, 0, 2, 0, 0, 0, 5, 0, 0],
-	# 	[0, 7, 0, 0, 6, 0, 0, 0, 0],
-	# 	[0, 0, 0, 9, 0, 1, 0, 0, 0],
-	# 	[0, 0, 0, 0, 2, 0, 0, 4, 0],
-	# 	[0, 0, 5, 0, 0, 0, 6, 0, 3],
-	# 	[0, 9, 0, 4, 0, 0, 0, 7, 0],
-	# 	[0, 0, 6, 0, 0, 0, 0, 0, 0],
-	# ])
+	# 	2, 0, 0, 0,
+	# 	0, 0, 4, 0,
+	# 	4, 0, 1, 0,
+	# 	0, 0, 0, 0,
+	# ], 4)
+
+	s = Sudoku([
+		0, 0, 0, 2, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 6, 0, 4, 0, 3,
+		0, 0, 0, 0, 0, 5, 0, 7, 0,
+		0, 7, 0, 0, 0, 2, 8, 0, 0,
+		5, 1, 0, 0, 0, 4, 9, 0, 0,
+		0, 0, 9, 0, 0, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 9, 0, 0, 0,
+		0, 0, 2, 0, 0, 0, 0, 9, 8,
+		0, 8, 3, 1, 0, 0, 2, 0, 0,
+
+		# 5, 3, 0, 0, 7, 0, 0, 0, 0,
+		# 6, 0, 0, 1, 9, 5, 0, 0, 0,
+		# 0, 9, 8, 0, 0, 0, 0, 6, 0,
+		# 8, 0, 0, 0, 6, 0, 0, 0, 3,
+		# 4, 0, 0, 8, 0, 3, 0, 0, 1,
+		# 7, 0, 0, 0, 2, 0, 0, 0, 6,
+		# 0, 6, 0, 0, 0, 0, 2, 8, 0,
+		# 0, 0, 0, 4, 1, 9, 0, 0, 5,
+		# 0, 0, 0, 0, 8, 0, 0, 7, 9,
+
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		# 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	])
 
 
-	print(solve_bad(s))
+	print(s)
+	print(s.solve())
 	print(f'backtracks: {backtracks}')
 
 if __name__ == '__main__':
