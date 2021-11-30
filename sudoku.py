@@ -1,8 +1,7 @@
 '''
 - create mask of possible moves for each number - DONE
 - if mask for a square only contains one item, place that and update mask - DONE
-- if mask for a square is arranged in a straight line
-	- update mask in that direction
+- if mask for a square is arranged in a straight line - DONE
 - treat n numbers sharing n tiles in a square as filled squares
 '''
 
@@ -13,23 +12,15 @@ backtracks = 0
 class Sudoku:
 	EMPTY = -1
 
-	def parse(s: str, digits: int = 1):
+	# only works for 1 digit per square
+	def parse(s: str):
 		out = []
 
-		i = 0
-		while i < len(s):
-			while not s[i].isdigit():
-				i += 1
+		for c in s:
+			if not c.isdigit():
+				continue
 
-				if i == len(s):
-					break
-
-			if i == len(s):
-				break
-
-			out.append(int(s[i : i + digits]) - 1)
-
-			i += digits
+			out.append(int(c) - 1)
 
 		return Sudoku(out, int(len(out) ** 0.5))
 
@@ -97,8 +88,12 @@ class Sudoku:
 				if i is not None:
 					if self.get_mask(i, x, y):
 						out += '•'
+					elif self[x, y] == Sudoku.EMPTY:
+						out += ' '
+					elif self[x, y] == i:
+						out += '*'
 					else:
-						out += ' ' if self[x, y] == Sudoku.EMPTY else '='
+						out += '='
 				else:
 					for n in range(self.len):
 						out += str(n + 1) if self.get_mask(n, x, y) else ' '
@@ -209,28 +204,6 @@ class Sudoku:
 
 		return False
 
-	def in_row(self, y: int, n: int) -> bool:
-		for i in range(self.len):
-			if self[i, y] == n: return False
-		return True
-
-	def in_col(self, x: int, n: int) -> bool:
-		for i in range(self.len):
-			if self[x, i] == n: return False
-		return True
-
-	# returns if valid for num n to be placed at x, y
-	def valid_pos(self, x: int, y: int, n: int, check_row: bool = True, check_col: bool = True) -> bool:
-		if self[x, y] != Sudoku.EMPTY: return False
-		if check_row and self.in_row(y, n): return False
-		if check_col and self.in_col(x, n): return False
-		
-		# check square
-		if self.iter_square(x, y, lambda _x, _y: self[_x, _y] == n):
-			return False
-	
-		return True
-
 	def update_mask(self, x: int, y: int):
 		cur = self[x, y]
 
@@ -245,7 +218,22 @@ class Sudoku:
 			# set false in every other mask
 			self.set_mask(i, x, y, False)
 
-	# given coords to top left of square
+	def update_line(self, x: int, y: int, n: int, pos: tuple):
+		# loop from 0 to x, then from x + boxlen to len
+		if pos[0] == 0:
+			for i in range(0, x):
+				self.set_mask(n, i, pos[1], False)
+
+			for i in range(x + self.boxlen, self.len):
+				self.set_mask(n, i, pos[1], False)
+		# loop from 0 to y, then from y + boxlen to len
+		else:
+			for i in range(0, y):
+				self.set_mask(n, pos[0], i, False)
+
+			for i in range(y + self.boxlen, self.len):
+				self.set_mask(n, pos[0], i, False)
+
 	# if it finds a line, returns (0, n) for row and (n, 0) for col
 	def mask_line(self, x: int, y: int, n: int):
 		xpos_found, ypos_found = -1, -1
@@ -287,6 +275,7 @@ class Sudoku:
 			s[pos] = val
 
 		changed = True
+		lines = []
 		while changed:
 			changed = False
 
@@ -320,20 +309,44 @@ class Sudoku:
 					# reset pos
 					r_pos, c_pos = -1, -1
 
+			# loop through every square and look for only one valid spot
+			for y in range(0, s.len, s.boxlen):
+				for x in range(0, s.len, s.boxlen):
+					for n in range(s.len):
+						found = None
+
+						def f(_x, _y):
+							nonlocal found
+							if s.get_mask(n, _x, _y):
+								if found is not None: return True
+								found = (_x, _y)
+
+						if not s.iter_square(x, y, f) and found is not None:
+							s[found] = n
+
 			# look through every square and check if there is a line
 			# in the mask
 			# ex
 			# | = |
 			# |== |
 			# |••=|
+			for y in range(0, s.len, s.boxlen):
+				for x in range(0, s.len, s.boxlen):
+					# loop through every number
+					for n in range(s.len):
+						t = s.mask_line(x, y, n)
+
+						if t is not None:
+							if t not in lines:
+								changed = True
+
+							lines.append(t)
+							s.update_line(x, y, n, t)
 
 		if s.solved():
 			return s
 
 		print(s)
-		print(s.mask_str(1))
-
-		print(self.mask_line(0, 1, 1))
 
 		exit()
 
@@ -358,17 +371,27 @@ class Sudoku:
 def main():
 	s = Sudoku.parse(
 		'''
-		000200000
-		000060403
-		000005070
-		070002800
-		510004900
-		009003000
-		000009000
-		002000098
-		083100200
+		001006040
+		000000801
+		400000000
+		500190400
+		002800005
+		007500600
+		000600508
+		685709102
+		019000000
 		'''
-
+		# '''
+		# 000200000
+		# 000060403
+		# 000005070
+		# 070002800
+		# 510004900
+		# 009003000
+		# 000009000
+		# 002000098
+		# 083100200
+		# '''
 		# '''
 		# 002070010
 		# 700090020
