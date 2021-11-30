@@ -76,6 +76,9 @@ class Sudoku:
 	def __getitem__(self, pos: tuple) -> int:
 		return self.arr[pos[1] * self.len + pos[0]]
 
+	def isempty(self, x: int, y: int) -> bool:
+		return self[x, y] == Sudoku.EMPTY
+
 	# zero indexed number
 	def __setitem__(self, pos: tuple, val: int):
 		if val < 0 or val >= self.len:

@@ -85,14 +85,10 @@ def solve(self, pos: tuple = None, val: int = None):
 		print(f'backtracks {backtracks}')
 		return s
 
-	print(s)
-
-	exit()
-
 	for y in range(s.len):
 		for x in range(s.len):
 			# if square is empty
-			if s[x, y] == Sudoku.EMPTY:
+			if s.isempty(x, y):
 				# attempt to place all numbers
 				for n in range(s.len):
 					# if valid

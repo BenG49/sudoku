@@ -12,7 +12,7 @@ def mask_str(self, i: int = None) -> str:
 			if i is not None:
 				if self.get_mask(i, x, y):
 					out += '•'
-				elif self[x, y] == Sudoku.EMPTY:
+				elif self.isempty(x, y):
 					out += ' '
 				elif self[x, y] == i:
 					out += '*'
