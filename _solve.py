@@ -1,4 +1,15 @@
-from copy import deepcopy
+'''
+- create mask of possible moves for each number - DONE
+- if mask for a square only contains one item, place that and update mask - DONE
+- if mask for a square is arranged in a straight line - DONE
+- treat n numbers sharing n tiles in a square as filled squares
+
+big optimization:
+instead of guessing every single open mask, guess only for a certain
+number in an area, and if none of positions work
+
+can operate on row, col, square
+'''
 
 backtracks = 0
 
@@ -7,12 +18,13 @@ def solve(self, pos: tuple = None, val: int = None):
 	global backtracks
 
 	# deepcopy in order to not have to revert moves
-	s = deepcopy(self)
+	s = self.copy()
 
 	if pos:
 		s[pos] = val
 
 	changed = True
+	# keep track of square mask lines that have been found
 	lines = []
 	while changed:
 		changed = False
@@ -82,7 +94,7 @@ def solve(self, pos: tuple = None, val: int = None):
 						s.update_line(x, y, n, t)
 
 	if s.solved():
-		print(f'backtracks {backtracks}')
+		backtracks = 0
 		return s
 
 	for y in range(s.len):

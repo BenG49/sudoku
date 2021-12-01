@@ -1,9 +1,4 @@
-'''
-- create mask of possible moves for each number - DONE
-- if mask for a square only contains one item, place that and update mask - DONE
-- if mask for a square is arranged in a straight line - DONE
-- treat n numbers sharing n tiles in a square as filled squares
-'''
+from copy import deepcopy, copy
 
 class Sudoku:
 	EMPTY = -1
@@ -21,7 +16,7 @@ class Sudoku:
 		return Sudoku(out, int(len(out) ** 0.5))
 
 	# start is inputted as 0-indexed sudoku board
-	def __init__(self, start: list, sidelen: int = 9):
+	def __init__(self, start: list, sidelen: int = 9, mask: list = None):
 		self.len = sidelen
 		self.boxlen = int(self.len ** 0.5)
 
@@ -31,26 +26,27 @@ class Sudoku:
 		self.arr = start
 
 		# 9*9 array for 9 numbers
-		self.mask = [[True for _ in range(self.len * self.len)] for _ in range(self.len)]
+		self.mask = mask if mask else [[True for _ in range(self.len * self.len)] for _ in range(self.len)]
 
-		# init mask
-		for y in range(self.len):
-			for x in range(self.len):
-				cur = self[x, y]
+		if mask is None:
+			# init mask
+			for y in range(self.len):
+				for x in range(self.len):
+					cur = self[x, y]
 
-				if cur == Sudoku.EMPTY:
-					continue
+					if cur == Sudoku.EMPTY:
+						continue
 
-				# set mask in cross false
-				for i in range(self.len):
-					self.set_mask(cur, i, y, False)
-					self.set_mask(cur, x, i, False)
+					# set mask in cross false
+					for i in range(self.len):
+						self.set_mask(cur, i, y, False)
+						self.set_mask(cur, x, i, False)
 
-					# square to false in every mask
-					self.set_mask(i, x, y, False)
+						# square to false in every mask
+						self.set_mask(i, x, y, False)
 
-				# set mask in square false
-				self.iter_square(x, y, lambda x, y: self.set_mask(cur, x, y, False))
+					# set mask in square false
+					self.iter_square(x, y, lambda x, y: self.set_mask(cur, x, y, False))
 
 	from _mask import mask_str, get_mask, set_mask, update_mask, update_line, mask_line
 	from _solve import solve
@@ -170,45 +166,9 @@ class Sudoku:
 
 		return False
 
-def main():
-	s = Sudoku.parse(
-		'''
-		001006040
-		000000801
-		400000000
-		500190400
-		002800005
-		007500600
-		000600508
-		685709102
-		019000000
-		'''
-		# '''
-		# 000200000
-		# 000060403
-		# 000005070
-		# 070002800
-		# 510004900
-		# 009003000
-		# 000009000
-		# 002000098
-		# 083100200
-		# '''
-		# '''
-		# 002070010
-		# 700090020
-		# 060040003
-		# 090030002
-		# 058000100
-		# 007000004
-		# 900000008
-		# 000400200
-		# 803001005
-		# '''
-	)
-
-	print(s)
-	print(s.solve())
-
-if __name__ == '__main__':
-	main()
+	def copy(self):
+		return Sudoku(
+			copy(self.arr),
+			self.len,
+			deepcopy(self.mask)
+		)
