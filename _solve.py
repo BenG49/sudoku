@@ -24,7 +24,7 @@ def solve(self, pos: tuple = None, val: int = None):
 		s[pos] = val
 
 	changed = True
-	# keep track of square mask lines that have been found
+	# keep track of mask lines that have been found
 	lines = []
 	while changed:
 		changed = False
@@ -89,11 +89,12 @@ def solve(self, pos: tuple = None, val: int = None):
 					if t is not None:
 						if t not in lines:
 							changed = True
+							lines.append(t)
 
-						lines.append(t)
 						s.update_line(x, y, n, t)
 
 	if s.solved():
+		print(f'backtracks: {backtracks}')
 		backtracks = 0
 		return s
 
