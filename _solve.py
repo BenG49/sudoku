@@ -98,19 +98,45 @@ def solve(self, pos: tuple = None, val: int = None):
 		backtracks = 0
 		return s
 
-	for y in range(s.len):
-		for x in range(s.len):
-			# if square is empty
-			if s.isempty(x, y):
-				# attempt to place all numbers
-				for n in range(s.len):
-					# if valid
-					if s.get_mask(n, x, y):
-						# guess
-						tmp = s.solve((x, y), n)
+	# loop through every number
+	for y in range(0, s.len, s.boxlen):
+		for x in range(0, s.len, s.boxlen):
+			# loop through every number
+			for n in range(s.len):
+				print(f'testing {n} in square {x}, {y}')
+				in_square = False
 
-						# if the board was valid, return that board
-						if tmp: return tmp
+				# check if there is at least one valid position for each number
+				def has_valid(_x, _y):
+					if s.isempty(_x, _y) and s.get_mask(n, _x, _y):
+						print('recursing')
+						# recurse, test if actually valid
+						tmp = s.solve((_x, _y), n)
+						if tmp:
+							return tmp
+					elif s[_x, _y] == n:
+						print('in square')
+						in_square = True
+
+				s.iter_square(x, y, has_valid)
+
+				if not in_square:
+					backtracks += 1
+					return None
+
+	#for y in range(s.len):
+	#	for x in range(s.len):
+	#		# if square is empty
+	#		if s.isempty(x, y):
+	#			# attempt to place all numbers
+	#			for n in range(s.len):
+	#				# if valid
+	#				if s.get_mask(n, x, y):
+	#					# guess
+	#					tmp = s.solve((x, y), n)
+
+	#					# if the board was valid, return that board
+	#					if tmp: return tmp
 
 	# if no numbers can be placed here
 	backtracks += 1
