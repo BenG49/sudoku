@@ -1,32 +1,29 @@
-# prints selected mask if given, else print whole mask
-def mask_str(self, i: int = None) -> str:
+# prints selected mask
+def mask_str(self, i: int) -> str:
 	out = ''
-	vert = '-' * ((self.len * self.len + self.len + 1) if i is None else (self.len + self.boxlen + 1))
+	vert = '-' * (self.len + self.boxlen + 1)
 
 	for y in range(self.len):
 		if y % self.boxlen == 0: out += vert + '\n'
 
 		for x in range(self.len):
-			out += '|' if x % self.boxlen == 0 else ('/' if i is None else '')
+			if x % self.boxlen == 0: out += '|'
 
-			if i is not None:
-				if self.get_mask(i, x, y):
-					out += '•'
-				elif self.isempty(x, y):
-					out += ' '
-				elif self[x, y] == i:
-					out += '*'
-				else:
-					out += '='
+			# valid mask position
+			if self.get_mask(i, x, y):
+				out += '•'
+			elif self.isempty(x, y):
+				out += ' '
+			# selected number placeed
+			elif self[x, y] == i:
+				out += '*'
+			# occupied square
 			else:
-				for n in range(self.len):
-					out += str(n + 1) if self.get_mask(n, x, y) else ' '
+				out += '='
 
 		out += '|\n'
 
-	out += vert
-
-	return out
+	return out + vert
 
 def get_mask(self, n: int, x: int, y: int) -> bool:
 	return self.mask[n][y * self.len + x]

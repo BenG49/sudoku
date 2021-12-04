@@ -20,8 +20,8 @@ class Sudoku:
 		self.len = sidelen
 		self.boxlen = int(self.len ** 0.5)
 
-		# useful for solved(), sum from 1 to len
-		self.sum = (self.len * (self.len + 1)) // 2
+		# useful for solved(), sum from 0 to len - 1
+		self.sum = (self.len * (self.len - 1)) // 2
 
 		self.arr = start
 
@@ -35,6 +35,8 @@ class Sudoku:
 				for x in range(self.len):
 					if self.isempty(x, y):
 						continue
+
+					# self.update_mask(x, y)
 
 					cur = self[x, y]
 
@@ -141,11 +143,11 @@ class Sudoku:
 			for x in range(0, self.len, self.boxlen):
 				sq_sum = 0
 
-				def sq_sum(_x, _y):
+				def f(_x, _y):
 					nonlocal sq_sum
-					sq_sum += self[_x, _y] + 1
+					sq_sum += self[_x, _y]
 
-				self.iter_square(x, y, sq_sum)
+				self.iter_square(x, y, f)
 
 				if sq_sum != self.sum:
 					return False
