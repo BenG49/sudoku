@@ -45,24 +45,30 @@ def update_mask(self, x: int, y: int):
 		# set false in every other mask
 		self.set_mask(i, x, y, False)
 
-def update_line(self, x: int, y: int, n: int, pos: tuple):
-	# loop from 0 to x, then from x + boxlen to len
-	if pos[0] == 0:
-		for i in range(0, x):
-			self.set_mask(n, i, pos[1], False)
+# given x and y of box, number, and line pos
+# sets mask to false in line outside of box
+def update_line(self, box_x: int, box_y: int, n: int, pos: tuple):
+	# index to set while looping
+	idx = 0 if pos[0] == 0 else 1
+	loop_var = box_x if idx == 0 else box_y
+	pos = list(pos)
 
-		for i in range(x + self.boxlen, self.len):
-			self.set_mask(n, i, pos[1], False)
-	# loop from 0 to y, then from y + boxlen to len
-	else:
-		for i in range(0, y):
-			self.set_mask(n, pos[0], i, False)
+	for i in range(0, loop_var):
+		pos[idx] = i
+		self.set_mask(n, *pos, False)
 
-		for i in range(y + self.boxlen, self.len):
-			self.set_mask(n, pos[0], i, False)
+	for i in range(loop_var + self.boxlen, self.len):
+		pos[idx] = i
+		self.set_mask(n, *pos, False)
 
-# if it finds a line, returns (0, n) for row and (n, 0) for col
+# looks for line in mask, ex
+# | = |
+# |== |
+# |••=|
+
+# returns (0, n) for row and (n, 0) for col
 def mask_line(self, x: int, y: int, n: int):
+	# looks for points that have all same xpos or ypos
 	xpos_found, ypos_found = -1, -1
 
 	def i(_x, _y):
@@ -86,7 +92,8 @@ def mask_line(self, x: int, y: int, n: int):
 	if xpos_found == -1 and ypos_found == -1:
 		return None
 
-	if xpos_found != -1 and xpos_found is not None:
+	# if none, then was repeated
+	if xpos_found is not None:
 		return (xpos_found, 0)
-	if ypos_found != -1 and ypos_found is not None:
+	if ypos_found is not None:
 		return (0, ypos_found)
