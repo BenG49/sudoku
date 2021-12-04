@@ -8,41 +8,42 @@ class Sudoku:
 		out = []
 
 		for c in s:
-			if not c.isdigit():
-				continue
-
-			out.append(int(c) - 1)
+			if c == ' ':
+				out.append(Sudoku.EMPTY)
+			elif c.isdigit():
+				out.append(int(c) - 1)
 
 		return Sudoku(out, int(len(out) ** 0.5))
 
-	# start is inputted as 0-indexed sudoku board
+	# start is 0-indexed 1d list
 	def __init__(self, start: list, sidelen: int = 9, mask: list = None):
 		self.len = sidelen
 		self.boxlen = int(self.len ** 0.5)
 
-		# useful for solved()
+		# useful for solved(), sum from 1 to len
 		self.sum = (self.len * (self.len + 1)) // 2
 
 		self.arr = start
 
-		# 9*9 array for 9 numbers
+		# len**2 1d array of bools for len numbers
 		self.mask = mask if mask else [[True for _ in range(self.len * self.len)] for _ in range(self.len)]
 
+		# not given mask, init
 		if mask is None:
-			# init mask
+			# loop over every number
 			for y in range(self.len):
 				for x in range(self.len):
-					cur = self[x, y]
-
-					if cur == Sudoku.EMPTY:
+					if self.isempty(x, y):
 						continue
 
-					# set mask in cross false
+					cur = self[x, y]
+
+					# in cross centered at x, y, set mask to false
 					for i in range(self.len):
 						self.set_mask(cur, i, y, False)
 						self.set_mask(cur, x, i, False)
 
-						# square to false in every mask
+						# x, y to false in every mask because occupied
 						self.set_mask(i, x, y, False)
 
 					# set mask in square false
@@ -61,13 +62,11 @@ class Sudoku:
 			for x in range(self.len):
 				if x % self.boxlen == 0: out += '|'
 
-				out += str(self[x, y] + 1) if self[x, y] != Sudoku.EMPTY else ' '
+				out += ' ' if self.isempty(x, y) else str(self[x, y] + 1)
 
 			out += '|\n'
 
-		out += vert
-
-		return out
+		return out + vert
 
 	def __getitem__(self, pos: tuple) -> int:
 		return self.arr[pos[1] * self.len + pos[0]]
@@ -88,61 +87,68 @@ class Sudoku:
 	def __delitem__(self, pos: tuple): pass
 	
 	def valid(self) -> bool:
-		count = [0] * self.len
+		for j in range(self.len):
+			in_row = [False] * self.len
+			in_col = [False] * self.len
 
-		for i in range(self.len):
-			for j in range(self.len):
-				c = self[i, j]
-				r = self[j, i]
+			for i in range(self.len):
+				if not self.isempty(i, j):
+					# row repeat
+					if in_row[self[i, j]]: return False
 
-				if c == Sudoku.EMPTY or r == Sudoku.EMPTY:
+					in_row[self[i, j]] = True
+				if not self.isempty(j, i):
+					# col repeat
+					if in_col[self[j, i]]: return False
+
+					in_col[self[j, i]] = True
+
+		for y in range(0, self.len, self.boxlen):
+			for x in range(0, self.len, self.boxlen):
+				in_sq = [False] * self.len
+
+				def sq_chk(_x, _y):
+					if not self.isempty(_x, _y):
+						# square repeat
+						if in_sq[self[_x, _y]]: return True
+
+						in_sq[self[_x, _y]] = True
+
+				if self.iter_square(x, y, sq_chk):
 					return False
-
-				count[c] += 1
-				count[r] += 1
-
-		for n in count:
-			if n != self.len * 2:
-				return False
-
-		def sq_chk(x, y): count[self[x, y]] += 1
-
-		for i in range(self.boxlen):
-			for j in range(self.boxlen):
-				self.iter_square(i, j, sq_chk)
-
-		for n in count:
-			if n != self.len * 3:
-				return False
 
 		return True
 	
+	# sum all rows, cols, squares and check that
+	# they equal the sum from 1 to len
 	def solved(self) -> bool:
-		s = 0
-
 		for i in range(self.len):
-			for j in range(self.len):
-				c = self[i, j]
-				r = self[j, i]
+			row_sum = 0
+			col_sum = 0
 
-				if c == Sudoku.EMPTY or r == Sudoku.EMPTY:
+			for j in range(self.len):
+				if self.isempty(i, j) or self.isempty(j, i):
 					return False
 
-				s += c + r + 2 # convert from 0 to 1 indexed
+				col_sum += self[j, i]
+				row_sum += self[i, j]
+			
+			if row_sum != self.sum or col_sum != self.sum:
+				return False
 
-		if s != self.sum * self.len * 2:
-			return False
+		# guarenteed no empty squares
+		for y in range(0, self.len, self.boxlen):
+			for x in range(0, self.len, self.boxlen):
+				sq_sum = 0
 
-		def sq_sum(x, y):
-			nonlocal s
-			s += self[x, y] + 1
+				def sq_sum(_x, _y):
+					nonlocal sq_sum
+					sq_sum += self[_x, _y] + 1
 
-		for i in range(self.boxlen):
-			for j in range(self.boxlen):
-				self.iter_square(i, j, sq_sum)
+				self.iter_square(x, y, sq_sum)
 
-		if s != self.sum * self.len * 3:
-			return False
+				if sq_sum != self.sum:
+					return False
 
 		# passed sums test, check if valid
 		return self.valid()
