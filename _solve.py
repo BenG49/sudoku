@@ -2,13 +2,8 @@
 - create mask of possible moves for each number - DONE
 - if mask for a square only contains one item, place that and update mask - DONE
 - if mask for a square is arranged in a straight line - DONE
+- if no possible positions for number in row, invalid board - DONE
 - treat n numbers sharing n tiles in a square as filled squares
-
-big optimization:
-instead of guessing every single open mask, guess only for a certain
-number in an area, and if none of positions work
-
-can operate on row, col, square
 '''
 
 backtracks = 0
@@ -99,45 +94,24 @@ def solve(self, pos: tuple = None, val: int = None):
 		return s
 
 	# loop through every number
-	for y in range(0, s.len, s.boxlen):
-		for x in range(0, s.len, s.boxlen):
-			# loop through every number
-			for n in range(s.len):
-				print(f'testing {n} in square {x}, {y}')
-				in_square = False
+	for n in range(s.len):
+		# loop through every row
+		for y in range(s.len):
+			in_row = False
 
-				# check if there is at least one valid position for each number
-				def has_valid(_x, _y):
-					if s.isempty(_x, _y) and s.get_mask(n, _x, _y):
-						print('recursing')
-						# recurse, test if actually valid
-						tmp = s.solve((_x, _y), n)
-						if tmp:
-							return tmp
-					elif s[_x, _y] == n:
-						print('in square')
-						in_square = True
+			# check that there is at least one valid position
+			for x in range(s.len):
+				if s.isempty(x, y) and s.get_mask(n, x, y):
+					# recurse with guess
+					tmp = s.solve((x, y), n)
 
-				s.iter_square(x, y, has_valid)
+					# if board was valid, return
+					if tmp:
+						return tmp
+				elif s[x, y] == n:
+					in_row = True
 
-				if not in_square:
-					backtracks += 1
-					return None
-
-	#for y in range(s.len):
-	#	for x in range(s.len):
-	#		# if square is empty
-	#		if s.isempty(x, y):
-	#			# attempt to place all numbers
-	#			for n in range(s.len):
-	#				# if valid
-	#				if s.get_mask(n, x, y):
-	#					# guess
-	#					tmp = s.solve((x, y), n)
-
-	#					# if the board was valid, return that board
-	#					if tmp: return tmp
-
-	# if no numbers can be placed here
-	backtracks += 1
-	return None
+			# no possible positions in row, invalid
+			if not in_row:
+				backtracks += 1
+				return None
